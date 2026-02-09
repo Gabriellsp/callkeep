@@ -30,7 +30,7 @@
 static CXProvider* sharedProvider;
 static NSDictionary *settings;
 static NSObject<CallKeepPushDelegate>* _delegate;
-
+static NSMutableSet<NSString *> *AcceptedCallUUIDs = nil;
 - (instancetype)init
 {
 #ifdef DEBUG
@@ -40,6 +40,16 @@ static NSObject<CallKeepPushDelegate>* _delegate;
         _delayedEvents = [NSMutableArray array];
     }
     return self;
+}
+
++ (void)initialize
+{
+    if (self == [CallKeep class]) {
+        #ifdef DEBUG
+                NSLog(@"[CallKeep] +initialize called");
+        #endif
+        AcceptedCallUUIDs = [NSMutableSet set];
+    }
 }
 
 + (id)allocWithZone:(NSZone *)zone {
@@ -249,10 +259,24 @@ static NSObject<CallKeepPushDelegate>* _delegate;
     NSString *callerName = dic[@"caller_name"];
     BOOL hasVideo = [dic[@"has_video"] boolValue];
     NSString *callerIdType = dic[@"caller_id_type"];
-    
+    BOOL isCancel = [dic[@"is_cancel"] boolValue];
+    BOOL isOnCall = [dic[@"is_oncall"] boolValue];
     
     if( uuid == nil) {
         uuid = [self createUUID];
+    }
+    BOOL isAcceptedCall = NO;
+    @synchronized (AcceptedCallUUIDs) {
+        isAcceptedCall = [AcceptedCallUUIDs containsObject:uuid];
+    }
+    
+    if ((isCancel) || (isOnCall && !isAcceptedCall)) {
+        [self endCall:uuid];
+
+        if(completion != nil) {
+            completion();
+        }
+        return;
     }
     
     NSLog(@"Got here %@.", [dic description]);
@@ -339,6 +363,9 @@ static NSObject<CallKeepPushDelegate>* _delegate;
 #ifdef DEBUG
     NSLog(@"[CallKeep][answerIncomingCall] uuidString = %@", uuidString);
 #endif
+    @synchronized (AcceptedCallUUIDs) {
+        [AcceptedCallUUIDs addObject:uuidString];
+    }
     NSUUID *uuid = [[NSUUID alloc] initWithUUIDString:uuidString];
     CXAnswerCallAction *answerCallAction = [[CXAnswerCallAction alloc] initWithCallUUID:uuid];
     CXTransaction *transaction = [[CXTransaction alloc] initWithAction:answerCallAction];
@@ -351,6 +378,9 @@ static NSObject<CallKeepPushDelegate>* _delegate;
 #ifdef DEBUG
     NSLog(@"[CallKeep][endCall] uuidString = %@", uuidString);
 #endif
+    @synchronized (AcceptedCallUUIDs) {
+        [AcceptedCallUUIDs removeObject:uuidString];
+    }
     NSUUID *uuid = [[NSUUID alloc] initWithUUIDString:uuidString];
     CXEndCallAction *endCallAction = [[CXEndCallAction alloc] initWithCallUUID:uuid];
     CXTransaction *transaction = [[CXTransaction alloc] initWithAction:endCallAction];
@@ -848,6 +878,9 @@ continueUserActivity:(NSUserActivity *)userActivity
 #ifdef DEBUG
     NSLog(@"[CallKeep][CXProviderDelegate][provider:performAnswerCallAction]");
 #endif
+    @synchronized (AcceptedCallUUIDs) {
+        [AcceptedCallUUIDs addObject:[action.callUUID.UUIDString lowercaseString]];
+    }
     [self configureAudioSession];
     [self sendEventWithNameWrapper:CallKeepPerformAnswerCallAction body:@{ @"callUUID": [action.callUUID.UUIDString lowercaseString] }];
     [action fulfill];
