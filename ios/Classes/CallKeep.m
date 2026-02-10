@@ -270,15 +270,6 @@ static NSMutableSet<NSString *> *AcceptedCallUUIDs = nil;
         isAcceptedCall = [AcceptedCallUUIDs containsObject:uuid];
     }
     
-    if ((isCancel) || (isOnCall && !isAcceptedCall)) {
-        [self endCall:uuid];
-
-        if(completion != nil) {
-            completion();
-        }
-        return;
-    }
-    
     NSLog(@"Got here %@.", [dic description]);
     
     [CallKeep reportNewIncomingCall:uuid
@@ -289,6 +280,16 @@ static NSMutableSet<NSString *> *AcceptedCallUUIDs = nil;
                         fromPushKit:YES
                             payload:dic
               withCompletionHandler:completion];
+
+    
+    if (isCancel || (isOnCall && !isAcceptedCall)) {
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, 0.1 * NSEC_PER_SEC),
+                       dispatch_get_main_queue(), ^{
+            [self endCall:uuid];
+        });
+    }
+    
+    
 }
 
 - (void)pushRegistry:(PKPushRegistry *)registry didReceiveIncomingPushWithPayload:(PKPushPayload *)payload forType:(NSString *)type {
