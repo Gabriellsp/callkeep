@@ -62,6 +62,7 @@ import io.wazo.callkeep.utils.ConstraintsMap;
 import io.wazo.callkeep.utils.ConstraintsArray;
 import io.wazo.callkeep.utils.MapUtils;
 import io.wazo.callkeep.utils.PermissionUtils;
+import android.telecom.CallAudioState;
 
 import static io.wazo.callkeep.CallKeepConstants.*;
 
@@ -154,6 +155,15 @@ public class CallKeepModule {
             break;
             case "checkDefaultPhoneAccount": {
                 checkDefaultPhoneAccount(result);
+            }
+            case "changeSpeakerPhoneState": {
+                Boolean isEnabled = (Boolean) call.argument("isEnabled");
+                String uuid = (String) call.argument("uuid");
+                if (isEnabled == null) isEnabled = false;
+                if (uuid == null) uuid = "";
+                changeSpeakerPhoneState(isEnabled, uuid);
+
+                result.success(null);
             }
             break;
             case "setOnHold": {
@@ -453,6 +463,20 @@ public class CallKeepModule {
         } else {
             result.success(true);
         }
+    }
+
+    public void changeSpeakerPhoneState(Boolean isEnabled, String uuid) {
+        VoiceConnection conn = VoiceConnectionService.getConnection(uuid);
+        if (conn == null) {
+            return;
+        }
+        int newRoute;
+        if (!isEnabled) {
+            newRoute = CallAudioState.ROUTE_EARPIECE;
+        } else {
+            newRoute = CallAudioState.ROUTE_SPEAKER;
+        }
+        conn.setAudioRoute(newRoute);
     }
 
     @SuppressLint("MissingPermission")
