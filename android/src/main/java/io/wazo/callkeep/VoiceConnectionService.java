@@ -221,14 +221,15 @@ public class VoiceConnectionService extends ConnectionService {
     private Connection makeOutgoingCall(ConnectionRequest request) {
         fixMissingNumber(request.getAddress(), request.getExtras());
         fixMissingCallId(request.getExtras());
+        VoiceConnection connection = makeOngoingCall(request, request.getExtras());
+        connection.setDialing();
+        connection.initCall();
+
         if (!wakeAndCheckAvailability(request.getExtras(), false)) {
-            return Connection.createFailedConnection(new DisconnectCause(DisconnectCause.LOCAL));
-        } else {
-            VoiceConnection connection = makeOngoingCall(request, request.getExtras());
-            connection.setDialing();
-            connection.initCall();
-            return connection;
+            Log.d(TAG, "App not reachable yet, waking...");
         }
+
+        return connection;
     }
 
     private VoiceConnection makeOngoingCall(ConnectionRequest request, Bundle extras) {
