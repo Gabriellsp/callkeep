@@ -120,8 +120,10 @@ static NSMutableSet<NSString *> *AcceptedCallUUIDs = nil;
         [self checkSpeakerResult:result];
     } else if ([@"reportConnectingOutgoingCallWithUUID" isEqualToString:method]) {
         [self reportConnectingOutgoingCallWithUUID:argsMap[@"uuid"]];
+        result(nil);
     } else if ([@"reportConnectedOutgoingCallWithUUID" isEqualToString:method]) {
         [self reportConnectedOutgoingCallWithUUID:argsMap[@"uuid"]];
+        result(nil);
     } else if([@"reportUpdatedCall" isEqualToString:method]){
         [self reportUpdatedCall:argsMap[@"uuid"] contactIdentifier:argsMap[@"callerName"]];
         result(nil);
